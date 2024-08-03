@@ -1,0 +1,47 @@
+name: Trigger auto deployment for taskingai
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ master ]
+    paths:
+    - '**'
+    - '.github/workflows/taskingai-AutoDeployTrigger-d8fee99d-267e-4a18-8b13-81dac3bad24e.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:      
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.TASKINGAI_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.TASKINGAI_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.TASKINGAI_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }} 
+          registryUrl: taskingai.azurecr.io
+          registryUsername: ${{ secrets.TASKINGAI_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.TASKINGAI_REGISTRY_PASSWORD }}
+          containerAppName: taskingai
+          resourceGroup: AzureBackupRG_eastus_1
+          imageToBuild: taskingai.azurecr.io/taskingai:${{ github.sha }}
+          _buildArgumentsKey_: |
+            _buildArgumentsValues_
+
+
